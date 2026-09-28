@@ -1,0 +1,11 @@
+# Mounts cache-guard into a dsh profile. Defaults detect a full-prefix rewrite
+# against a trailing 8-turn baseline; loosen factor/floor for chatty workloads.
+- insert:
+    - id: cache-guard
+      name: dsh-plugin-cache-guard
+      config:
+        enabled: true
+        window: 8
+        factor: 2.5
+        floorTokens: 1500
+        adviseModel: true   # tell the model in-context to stop mutating the prefix
