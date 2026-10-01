@@ -53,6 +53,15 @@ dsh 的 usage 三桶互斥（`@deepseek-ai/dsh-llm` 的 `TokenUsage` 注释原�
 
    即旧规则 17 次指控里 **6 次（35%）该步缓存命中完好＝误报**，新规则把它们降级为变长，**11 次真重写一个不丢**。该脚本同时断言 `src/*.ts` 与 `tsc` 产出的 `lib/*.js` 在每个会话上结果逐字节一致。
 3. **挂载状态**：v0.1.0 的事件面（`session/event` → `tools/post-execute` 注入）在 web / plugtest profile 里实跑过，会话日志中可见其注入的提示——也正是在实跑日志里发现它会每步重复刷屏，v0.2.0 修掉了。**v0.2.0 本身尚未在运行中的 dsh 里 live mount 复验**，改动只经过 1 与 2 两级验证。
-3. **挂载状态**：v0.1.0 的事件面（`session/event` → `tools/post-execute` 注入）在 web / plugtest profile 里实跑过，会话日志中可见其注入的提示——也正是在实跑日志里发现它会每步重复刷屏，v0.2.0 修掉了。**v0.2.0 本身尚未在运行中的 dsh 里 live mount 复验**，改动只经过 1 与 2 两级验证。
+3. **已挂载实跑复验（v0.2.0，2026-10-01）**：在运行中的 dsh `0.1.7-alpha.1`（headless profile，provider 走本地 OpenAI 兼容 relay，model `stealth/space-bunny-alpha`）里挂载并跑完 15 步会话。实测：`cache_status` 出现在真实请求的工具清单里并被模型连续调用，输出为真实流（`缓存命中率 64% · 9 步 · 判定: ✅ 前缀稳定`）；三闸门在该流上判定 2 次前缀重写（step 9/10：`cacheRead` 从基线 7,272 塌到 128、未缓存 10,032 ≈ 上一步整个 prompt 10,113），**提醒各注入一次而非每步刷屏**，去重生效；持久化后的 source kind 为 `plugin:cache-guard`。
 
-已知边界：判定只看 usage 流，无法区分"头部被重渲染"与"缓存 TTL 过期"——两者计费形状相同，所以提示语只指出断裂发生的轮次/步骤边界，不指责任何一方；`cacheWriteTokens` 参与 prompt 与命中率口径，但不参与判定（实测 relay 不返回该字段）。
+## 复验时挖出的 v0.1.0 致命 bug
+
+v0.1.0 的 `adviseModel` 腿在 dsh 0.1.7 上**一旦检出重写就会打断整个会话**：它用 `source: {kind:'plugin', plugin:<name>}` 造消息，而 session format v4 已废弃这个包装并直接抛错（`@deepseek-ai/dsh-session-format-v3-to-v4` 的 `source()`：`format v4 message requires a producer-owned source kind`）。v0.2.0 改为 v4 的生产者自有 kind（`plugin:<name>`，与官方迁移函数 `producerKind()` 的目标形状一致）。
+
+## 已知边界
+
+- 判定只看 usage 流，无法区分"头部被重渲染"与"缓存 TTL 过期"——两者计费形状相同，所以提示语只指出断裂发生的轮次/步骤边界，不指责任何一方。
+- `cacheWriteTokens` 参与 prompt 与命中率口径，但不参与判定（relay 普遍不返回该字段）。
+- **持续断裂会被滑动基线吸收**：同一次实跑里 step 12/14 的 `cacheRead` 同样是 128，但因为 step 9-11 已连续断裂抬高了未缓存基线，判定不再报。也就是说"每一步都在塌"的会话只会报出开头几次，随后转入静默——此时要看命中率与逐步 `cacheRead` 明细，而不是重写计数。
+- 前 8 步不参与判定（滑动窗口未填满），冷启动阶段的塌陷不会被报。

@@ -10,7 +10,7 @@ import { defineTool } from '@deepseek-ai/dsh-tools';
 import type {} from '@deepseek-ai/dsh-commands';
 import type {} from '@deepseek-ai/dsh-tools';
 import type {} from '@deepseek-ai/dsh-session';
-import { createUserMessage } from '@deepseek-ai/dsh-llm';
+import { createUserMessage, type MessageSource } from '@deepseek-ai/dsh-llm';
 
 import { analyze, renderHealth, DEFAULT_HEALTH_OPTIONS, type UsagePoint, type HealthOptions } from './cache-health.ts';
 
@@ -110,8 +110,12 @@ export function apply(ctx: Context, config: Config): void {
       ...downstream,
       additionalContexts: [
         createUserMessage({
+          // Session format v4 retired the {kind:'plugin', plugin} wrapper and throws
+          // on it (dsh-session-format-v3-to-v4). Third-party producers own their kind
+          // as `plugin:<name>`; dsh-llm's source union predates that and is narrower
+          // than its own runtime, hence the cast.
           content: [{ type: 'text', text }],
-          source: { kind: 'plugin', plugin: name, form: 'notice', summary: '缓存健康' },
+          source: { kind: `plugin:${name}`, form: 'notice', summary: '缓存健康' } as unknown as MessageSource,
         }),
         ...('additionalContexts' in downstream ? (downstream.additionalContexts ?? []) : []),
       ],
