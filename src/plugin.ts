@@ -22,6 +22,9 @@ export interface Config {
   window: number;
   factor: number;
   floorTokens: number;
+  collapseRatio: number;
+  collapseMinBaseline: number;
+  rebillShare: number;
   /** tell the model in-context when the prefix looks unstable */
   adviseModel: boolean;
 }
@@ -31,6 +34,9 @@ export const Config = Schema.object({
   window: Schema.natural().default(DEFAULT_HEALTH_OPTIONS.window),
   factor: Schema.number().default(DEFAULT_HEALTH_OPTIONS.factor),
   floorTokens: Schema.natural().default(DEFAULT_HEALTH_OPTIONS.floorTokens),
+  collapseRatio: Schema.number().default(DEFAULT_HEALTH_OPTIONS.collapseRatio),
+  collapseMinBaseline: Schema.natural().default(DEFAULT_HEALTH_OPTIONS.collapseMinBaseline),
+  rebillShare: Schema.number().default(DEFAULT_HEALTH_OPTIONS.rebillShare),
   adviseModel: Schema.boolean().default(true),
 });
 
@@ -43,9 +49,18 @@ export function apply(ctx: Context, config: Config): void {
   const log = ctx.logger('cache-guard');
   if (!config.enabled) return void log.info('disabled by config');
 
-  const options: HealthOptions = { window: config.window, factor: config.factor, floorTokens: config.floorTokens };
+  const options: HealthOptions = {
+    window: config.window,
+    factor: config.factor,
+    floorTokens: config.floorTokens,
+    collapseRatio: config.collapseRatio,
+    collapseMinBaseline: config.collapseMinBaseline,
+    rebillShare: config.rebillShare,
+  };
   const pointsBySession = new Map<string, UsagePoint[]>();
   const pendingAdvice = new Map<string, string>();
+  /** rewrites already announced per session, so one break is not reported every step */
+  const announced = new Map<string, number>();
   const modelByAgent = new Map<string, ModelRef>();
 
   ctx.on('agent/request', (payload, next) =>
@@ -58,22 +73,31 @@ export function apply(ctx: Context, config: Config): void {
 
   ctx.on('session/event', (session, event) => {
     if (event.type !== 'assistant/message') return;
-    const usage = event.data.usage as { inputTokens?: number; cacheReadTokens?: number; outputTokens?: number } | undefined;
+    const usage = event.data.usage as { inputTokens?: number; cacheReadTokens?: number; cacheWriteTokens?: number; outputTokens?: number } | undefined;
     if (!usage) return;
     const sessionId = String((session as { id?: unknown }).id ?? 'session');
     const points = pointsBySession.get(sessionId) ?? (pointsBySession.set(sessionId, []), pointsBySession.get(sessionId)!);
+    const at = typeof (event as { time?: unknown }).time === 'number' ? new Date((event as { time: number }).time).toISOString() : new Date().toISOString();
     points.push({
       turn: typeof event.data.turn === 'number' ? event.data.turn : points.length + 1,
-      at: new Date().toISOString(),
+      step: typeof event.data.step === 'number' ? event.data.step : points.length + 1,
+      at,
       uncachedInput: Math.max(0, usage.inputTokens ?? 0),
       cacheRead: Math.max(0, usage.cacheReadTokens ?? 0),
+      cacheWrite: Math.max(0, usage.cacheWriteTokens ?? 0),
       output: Math.max(0, usage.outputTokens ?? 0),
     });
     if (!config.adviseModel) return;
     const health = analyze(points, options);
-    if (health.verdict === 'stable') return;
-    const advice = `缓存健康提示: ${renderHealth(health)}\n如果你刚才改写过系统提示、工具列表或任何位于上下文开头的内容，请停止——那会把整个前缀打成未缓存，每轮都按全价计费。`;
-    if (points.length) pendingAdvice.set(sessionId, advice);
+    // announce each rewrite once: verdict is session-scoped, so without this the
+    // same break is re-injected on every later step and inflates the context
+    const fresh = health.rewrites.slice(announced.get(sessionId) ?? 0);
+    announced.set(sessionId, health.rewrites.length);
+    if (!fresh.length) return;
+    pendingAdvice.set(
+      sessionId,
+      `缓存健康提示: ${renderHealth(health)}\n本次新检测到 ${fresh.length} 处前缀重写（上面已列出的历史项不必重复处理）。`,
+    );
   });
 
   ctx.on('tools/post-execute', async (exec, _result, next) => {
@@ -97,6 +121,7 @@ export function apply(ctx: Context, config: Config): void {
   ctx.on('session/disposed', (session) => {
     const key = String((session as { id?: unknown }).id ?? '');
     pointsBySession.delete(key);
+    announced.delete(key);
     modelByAgent.delete(key);
   });
 

@@ -1,5 +1,8 @@
-# Mounts cache-guard into a dsh profile. Defaults detect a full-prefix rewrite
-# against a trailing 8-turn baseline; loosen factor/floor for chatty workloads.
+# Mounts cache-guard into a dsh profile. A step counts as a prefix rewrite only
+# when uncached input clears the trailing baseline band AND cacheRead collapses
+# against its own baseline AND the jump reaches the previous step's prompt size.
+# Loosen factor/floor for chatty workloads; raise rebillShare to demand a fuller
+# re-bill before an accusation is made.
 - insert:
     - id: cache-guard
       name: dsh-plugin-cache-guard
@@ -8,4 +11,7 @@
         window: 8
         factor: 2.5
         floorTokens: 1500
-        adviseModel: true   # tell the model in-context to stop mutating the prefix
+        collapseRatio: 0.25
+        collapseMinBaseline: 2000
+        rebillShare: 0.6
+        adviseModel: true   # inject the diagnosis once per new rewrite
