@@ -11,14 +11,18 @@
       "types": "./lib/types/index.d.ts",
       "default": "./lib/index.js"
     },
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./locale/*": "./locale/*",
+    "./icon.svg": "./icon.svg"
   },
   "files": [
     "lib",
     "src",
     "cordis.patch.yml",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "icon.svg",
+    "locale"
   ],
   "dsh": {
     "bundle": {
@@ -63,5 +67,6 @@
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": ">=4.0.0"
-  }
+  },
+  "icon": "./icon.svg"
 }
