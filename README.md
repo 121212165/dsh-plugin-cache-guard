@@ -1,5 +1,8 @@
 # dsh-plugin-cache-guard
 
+> 🧩 **dsh 插件家族**（22 件）：总目录 **[dsh-plugin-family](https://github.com/121212165/dsh-plugin-family)** ｜ 明星插件：**[ide-hub](https://github.com/121212165/dsh-plugin-ide-hub)** 跨 IDE 统一管理 · **[task-forge](https://github.com/121212165/dsh-plugin-task-forge)** 跨窗口无损交接 · **[quota](https://github.com/121212165/dsh-plugin-quota)** 实时用量仪表
+
+
 DeepSeek Harness (dsh) 插件：前缀缓存健康守卫。DeepSeek 的前缀缓存是省钱命脉——系统提示、工具列表或任何位于上下文开头的内容一旦被改写，整个前缀重新按未缓存全价计费。本插件监听 usage 流，把"只是变长"和"前缀真被重写"分开，估算重写多付的 token，并在出现重写时把诊断注入上下文。
 
 同系列：[price-aware](https://github.com/121212165/dsh-plugin-price-aware)（花了多少）· [cost-ledger](https://github.com/121212165/dsh-plugin-cost-ledger)（台账）· 本插件（**为什么多花**）。
