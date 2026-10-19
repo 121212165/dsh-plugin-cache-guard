@@ -40,11 +40,6 @@ export const Config = Schema.object({
   adviseModel: Schema.boolean().default(true),
 });
 
-interface ModelRef {
-  id: string;
-  provider?: string;
-}
-
 export function apply(ctx: Context, config: Config): void {
   const log = ctx.logger('cache-guard');
   if (!config.enabled) return void log.info('disabled by config');
@@ -61,13 +56,10 @@ export function apply(ctx: Context, config: Config): void {
   const pendingAdvice = new Map<string, string>();
   /** rewrites already announced per session, so one break is not reported every step */
   const announced = new Map<string, number>();
-  const modelByAgent = new Map<string, ModelRef>();
 
-  ctx.on('agent/request', (payload, next) =>
-    next().then((callConfig) => {
-      const shape = callConfig as unknown as { provider?: string; model?: string };
-      if (shape.model) modelByAgent.set(agentKey(payload.agent), { id: shape.model, provider: shape.provider });
-      return callConfig;
+  ctx.on('agent/request', (_payload, next) =>
+    next().then((callConfig) => callConfig).catch((error: unknown) => {
+      throw error;
     }),
   );
 
@@ -126,7 +118,6 @@ export function apply(ctx: Context, config: Config): void {
     const key = String((session as { id?: unknown }).id ?? '');
     pointsBySession.delete(key);
     announced.delete(key);
-    modelByAgent.delete(key);
   });
 
   ctx.commands.register({
@@ -156,9 +147,4 @@ export function apply(ctx: Context, config: Config): void {
   );
 
   log.info(`mounted · window=${config.window} factor=${config.factor}`);
-}
-
-function agentKey(agent: unknown): string {
-  const value = agent as { id?: string; session?: { id?: string } } | undefined;
-  return String(value?.id ?? value?.session?.id ?? 'agent');
 }
