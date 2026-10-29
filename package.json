@@ -27,6 +27,11 @@
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
+    },
+    "catalog": {
+      "category": "工具与质量",
+      "blurb": "前缀缓存健康守卫：检测前缀被改写导致的缓存失效多花钱，提醒模型住手",
+      "entries": "`/health` `cache_status`"
     }
   },
   "engines": {
