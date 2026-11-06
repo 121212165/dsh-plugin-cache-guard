@@ -19,24 +19,24 @@ export interface Config {
     /** tell the model in-context when the prefix looks unstable */
     adviseModel: boolean;
 }
-export declare const Config: Schema<Schemastery.ObjectS<{
-    enabled: Schema<boolean, boolean>;
-    window: Schema<number, number>;
-    factor: Schema<number, number>;
-    floorTokens: Schema<number, number>;
-    collapseRatio: Schema<number, number>;
-    collapseMinBaseline: Schema<number, number>;
-    rebillShare: Schema<number, number>;
-    adviseModel: Schema<boolean, boolean>;
-}>, Schemastery.ObjectT<{
-    enabled: Schema<boolean, boolean>;
-    window: Schema<number, number>;
-    factor: Schema<number, number>;
-    floorTokens: Schema<number, number>;
-    collapseRatio: Schema<number, number>;
-    collapseMinBaseline: Schema<number, number>;
-    rebillShare: Schema<number, number>;
-    adviseModel: Schema<boolean, boolean>;
-}>>;
+export declare const Config: Schema<Schemastery.ObjectS<NoInfer<{
+    enabled: Schema<boolean, boolean, "defined">;
+    window: Schema<number, number, "defined">;
+    factor: Schema<number, number, "defined">;
+    floorTokens: Schema<number, number, "defined">;
+    collapseRatio: Schema<number, number, "defined">;
+    collapseMinBaseline: Schema<number, number, "defined">;
+    rebillShare: Schema<number, number, "defined">;
+    adviseModel: Schema<boolean, boolean, "defined">;
+}>>, Schemastery.ObjectT<NoInfer<{
+    enabled: Schema<boolean, boolean, "defined">;
+    window: Schema<number, number, "defined">;
+    factor: Schema<number, number, "defined">;
+    floorTokens: Schema<number, number, "defined">;
+    collapseRatio: Schema<number, number, "defined">;
+    collapseMinBaseline: Schema<number, number, "defined">;
+    rebillShare: Schema<number, number, "defined">;
+    adviseModel: Schema<boolean, boolean, "defined">;
+}>>, "plain">;
 export declare function apply(ctx: Context, config: Config): void;
 //# sourceMappingURL=plugin.d.ts.map
